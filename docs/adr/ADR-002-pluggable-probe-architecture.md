@@ -3,7 +3,7 @@
 **Status:** Accepted  
 **Date:** 2026-06-25  
 **Deciders:** Hervé Brutin / Elioz Platform Team  
-**Technical Story:** Supervision UI — see `SPEC.md`
+**Technical Story:** Supervision UI — see `../specs/SPEC.md`
 
 ## Context
 

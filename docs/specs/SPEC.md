@@ -1,6 +1,6 @@
 # Supervision UI Specification
 
-**Status:** Draft  
+**Status:** Approved  
 **Owner:** Hervé Brutin / Elioz Platform Team  
 **Created:** 2026-06-25  
 **Last Updated:** 2026-06-25

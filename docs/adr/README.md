@@ -1,7 +1,7 @@
 # Architecture Decision Records — Supervision UI
 
 This directory contains the Architecture Decision Records (ADRs) for the
-Supervision UI service, derived from `../SPEC.md` and following
+Supervision UI service, derived from `../specs/SPEC.md` and following
 `../../../accelerator-resources/ADR_TEMPLATE.md`.
 
 | ADR | Title | Status |
