@@ -643,10 +643,10 @@ confirmation before/while implementing:
 - [x] **AISB-110 — "no more than 4 components" (confirmed 2026-06-25):** means
       **≤ 4 components per row**; extra components wrap to following rows. It is
       not a hard cap of 4 components total.
-- [ ] **AISB-109 — "standard user":** interpreted as **anonymous / not logged
-      in** (the dashboard is public). The raw REST answer tooltip is reserved for
-      authenticated admins. Confirm there is no intermediate non-admin
-      authenticated role.
+- [x] **AISB-109 — "standard user" (confirmed 2026-06-25):** means an
+      **anonymous / not logged-in** user. There is no intermediate non-admin
+      authenticated role: the raw REST answer tooltip is reserved for
+      authenticated admins, everyone else sees colors only.
 - [ ] **AISB-109 — content of the tooltip:** assumed to be the stored
       `raw_payload` of the relevant transition. Confirm whether the tooltip
       should show the full raw JSON or a formatted subset.
