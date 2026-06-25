@@ -25,6 +25,15 @@
 > reuses the data already returned by `GET /api/components/:id/history` and the
 > segment/duration computation already present in the `HistoryTimeline` component;
 > no backend, API or data-model change is required.
+>
+> **Addendum (2026-06-26) — AISB-122 (supersedes the AISB-121 list):** after
+> review, the textual timeline **list** introduced by AISB-121 is **replaced** by
+> a **date/time axis under the bar graph**: each status transition (the start of
+> each colored segment) gets a **vertical (rotated) `DD/MM HH:mm` label**,
+> horizontally aligned with the segment on the graph, so events can be situated in
+> time **at a glance, without hovering**. Still **frontend-only** (reuses the
+> existing `HistoryTimeline` segment/width computation); the colored bar graph and
+> the admin raw-payload hover tooltip are unchanged.
 
 ## Overview
 
@@ -131,22 +140,23 @@ Supervised components (initial scope):
 - [ ] When not authenticated, the tooltip with the raw answer is **not**
       available and the raw payload is not delivered to the client.
 
-### As an operator, I want a chronological timeline below the component history bar graph so that I can read the exact sequence, time and duration of each status transition (AISB-121)
+### As a user, I want vertical date/time labels under the component history bar graph so that I can situate events in time at a glance without hovering (AISB-122, supersedes the AISB-121 list)
 
 **Acceptance Criteria:**
-- [ ] On the component history detail view, a **timeline list** is shown **below**
-      the existing colored bar graph; the bar graph above it is unchanged.
-- [ ] Each timeline entry shows the **status** (up/down/unknown) with the same
-      color coding as the bar graph, the **transition timestamp**, and the
-      **duration** spent in that status. The most recent (still-current) status has
-      its duration computed up to "now".
-- [ ] Entries are ordered **most-recent first** (reverse-chronological).
-- [ ] The timeline reflects the same data and the same active **date-range filter**
-      (From/To) as the bar graph; applying the filter updates both.
-- [ ] When there are no transitions in the selected range, the timeline shows an
-      empty-state message (consistent with the bar graph's "No transitions found").
-- [ ] The timeline is part of the **public** read-only history view and does
-      **not** expose the admin-only raw probe payload.
+- [ ] The **textual timeline list** added by AISB-121 (the `<ul class="timeline">`
+      block below the bar graph) is **removed**.
+- [ ] Under the colored bar graph, a **date/time axis** is shown: each **status
+      transition** (the start of each colored segment) has a **vertical (rotated)
+      date/time label**, horizontally aligned with that transition's position on
+      the graph (proportional to the segment widths).
+- [ ] Each label shows the date and time in a compact **`DD/MM HH:mm`** format
+      (e.g. `25/06 14:30`).
+- [ ] Labels read left-to-right oldest → newest, consistent with the bar graph
+      order, and are legible without hovering.
+- [ ] When there are no transitions, no axis labels are shown (the bar graph's
+      existing empty state is preserved).
+- [ ] It stays **public** read-only and does **not** expose the admin-only raw
+      probe payload; the bar graph and its admin hover tooltip are unchanged.
 
 ### As a standard user, I want a simplified main page so that the supervision overview stays compact and readable (AISB-110)
 
@@ -520,10 +530,11 @@ payload so the dashboard banner stays current.
     answer is shown or sent to the client.
   - For a **logged-in (admin)** user: **hovering a colored bar** shows the
     corresponding **REST API answer** (the stored `raw_payload`) in a **tooltip**.
-  - **Below the bar graph (AISB-121)**: a **chronological timeline list** of the
-    status transitions, each entry showing the status, the transition timestamp
-    and the **duration** spent in that status, ordered **most-recent first**. It
-    is public (colors/timestamps only) and shares the bar graph's date filter.
+  - **Below the bar graph (AISB-122, supersedes the AISB-121 list)**: a
+    **date/time axis** with one **vertical (rotated) `DD/MM HH:mm` label per
+    status transition**, aligned with the segment positions, so events are
+    situated in time at a glance without hovering. Public (dates only); the admin
+    raw-payload hover tooltip on the bar graph is unchanged.
 - **Global status history (AISB-111)**: **clicking the global status box/banner**
   opens the **global status timeline** (global status transitions over time),
   backed by `GET /api/global-status/history`.
@@ -603,12 +614,14 @@ payload so the dashboard banner stays current.
       timestamps, so the dashboard "Checked at" reflects the **last verification**
       rather than the last status transition.
 
-### Phase 7: Component history timeline (AISB-121)
-- [ ] **AISB-121** — Add a **chronological timeline list below the component
-      history bar graph** (`HistoryTimeline`), each entry showing status,
-      transition timestamp and **duration** spent in that status, ordered
-      **most-recent first**, sharing the bar graph's date-range filter.
-      **Frontend-only**: no backend/API/data-model change.
+### Phase 7: Component history timeline (AISB-121 → AISB-122)
+- [ ] **AISB-121** — Added a chronological timeline **list** below the component
+      history bar graph. **Superseded by AISB-122.**
+- [ ] **AISB-122** — Replace the AISB-121 list with a **date/time axis under the
+      bar graph** (`HistoryTimeline`): one **vertical (rotated) `DD/MM HH:mm`
+      label per status transition**, aligned with the segment positions, readable
+      without hovering. **Frontend-only**: no backend/API/data-model change; the
+      colored bar graph and the admin raw-payload tooltip stay unchanged.
 
 ## Testing Strategy
 
@@ -631,9 +644,10 @@ payload so the dashboard banner stays current.
   history; the history detail renders a colored bar graph; the raw-answer tooltip
   appears on hover **only when authenticated** and is absent for anonymous users
   (AISB-109); clicking the global status box opens the global status history
-  (AISB-111); the component history detail renders a **chronological timeline
-  list below the bar graph** with status, timestamp and duration per entry,
-  ordered most-recent first, and reacting to the date-range filter (AISB-121).
+  (AISB-111); the component history detail renders a **date/time axis below the
+  bar graph** with one vertical `DD/MM HH:mm` label per status transition, aligned
+  with the segments and read without hovering (AISB-122, replacing the AISB-121
+  list).
 - **Performance tests**: pagination of history/transition queries.
 
 ## Rollout Plan
@@ -738,6 +752,9 @@ resolved** (confirmed 2026-06-25):
   last verification*): https://ives-group.atlassian.net/browse/AISB-120
 - Jira **AISB-121** (Story, *US - Chronological status timeline below the
   component history bar graph*): https://ives-group.atlassian.net/browse/AISB-121
+- Jira **AISB-122** (Story, *US - Vertical date/time axis labels under the
+  component history bar graph*, supersedes the AISB-121 list):
+  https://ives-group.atlassian.net/browse/AISB-122
 - Parent epic **AISB-62** (*Supervision 1.0.0*):
   https://ives-group.atlassian.net/browse/AISB-62
 - Health endpoint: `https://core-api.elioz.fr/health` (prod, reachable) /
