@@ -1,0 +1,35 @@
+The purpose is to provide a UI for the supervision of several components of our environment
+I want you to provide a state of the art UI which allows to see each component and to store statuses in database to get their history per component
+For sure, there is a global status which depends on the component status
+The service will ask the status of each component using Rest API
+For the moment, only the Following components have to be checked: 
+- Database
+- Ldap
+- Statistics
+- VideoMessaging
+- Cti
+- core-API
+The health route to get statuses is https://core-api-preprod.elioz.fr/health
+The answer is :
+{"isDatabaseUp":true|false,"isLdapUp":true|false,"isStatisticsUp":true|false,"isVideoMessagingUp":true|false,"isCtiUp":true|false,"isServiceApiUp":true|false}
+The status for each component is knwon as folllow:
+- Database: isDatabaseUp
+- Ldap: isLdapUp
+- Statistics: isStatisticsUp
+- VideoMessaging: isVideoMessagingUp
+- Cti: isCtiUp
+- core-API: according to the answer to the rest request, i.e. "200 Ok" is true, false else
+3 values are possible :
+- up (green)
+- down (red)
+- unknown (orange): if there is no answer to the rest API, except for the core-API which is considered as down
+I want you to request the rest api once per minute 
+Global status is 
+- green if everything is green
+- orange if statistics or VideoMessaging is not green
+- red if one of other component is not green
+Technical constraints :
+- New service to be deployed docker
+- Database to be deployed is mariadb
+- typescript for the language, but you can challenge me on this!
+ 
