@@ -15,9 +15,12 @@ export default function App() {
       <BrowserRouter>
         <div className="app-shell">
           <header className="topbar">
-            <div>
-              <h1>Supervision UI</h1>
-              <p className="subtitle">Realtime environment monitoring</p>
+            <div className="brand">
+              <img className="brand-logo" src="/elioz-logo.png" alt="Elioz" />
+              <div>
+                <h1>Supervision UI</h1>
+                <p className="subtitle">Realtime environment monitoring</p>
+              </div>
             </div>
             <nav className="topnav">
               <NavLink to="/">Dashboard</NavLink>
