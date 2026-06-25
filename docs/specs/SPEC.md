@@ -636,11 +636,10 @@ These were previously open questions; they are now decided:
 These items come from the AISB-109/110/111 refinement batch and need
 confirmation before/while implementing:
 
-- [ ] **AISB-110 — "only the label":** literally the ticket says each box shows
-      "only Label … no need to display anything else". Assumption taken: the box
-      keeps its **status color** (the color is the core signal) and only the
-      textual metadata (status text, last-transition date, criticality) is
-      removed. Confirm the color box is retained.
+- [x] **AISB-110 — "only the label" (confirmed 2026-06-25):** the component box
+      **keeps its status color** (the color is the core signal); only the textual
+      metadata (status text, last-transition date, criticality) is removed. So a
+      box = colored background + label only.
 - [ ] **AISB-110 — "no more than 4 components":** interpreted as **≤ 4 per row**
       (the screen is narrower). Confirm whether it means 4 per row (extra
       components wrap to following rows) or a hard cap of 4 components total.
