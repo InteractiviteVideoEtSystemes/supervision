@@ -8,29 +8,13 @@ const statusColor: Record<ComponentHistoryItem['status'], string> = {
   unknown: '#f97316',
 };
 
-const statusChipClass: Record<ComponentHistoryItem['status'], string> = {
-  up: 'status-green',
-  down: 'status-red',
-  unknown: 'status-orange',
-};
-
-const statusIcon: Record<ComponentHistoryItem['status'], string> = {
-  up: '✓',
-  down: '✗',
-  unknown: '⚠',
-};
-
-function formatDuration(ms: number): string {
-  const seconds = Math.floor(ms / 1000);
-  if (seconds < 60) return `${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m`;
-  const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
-  if (hours < 24) return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
-  const days = Math.floor(hours / 24);
-  const remainingHours = hours % 24;
-  return remainingHours > 0 ? `${days}d ${remainingHours}h` : `${days}d`;
+function formatDateTime(d: Date | string): string {
+  const dt = new Date(d as string);
+  const dd = String(dt.getDate()).padStart(2, '0');
+  const mm = String(dt.getMonth() + 1).padStart(2, '0');
+  const hh = String(dt.getHours()).padStart(2, '0');
+  const min = String(dt.getMinutes()).padStart(2, '0');
+  return `${dd}/${mm} ${hh}:${min}`;
 }
 
 type TooltipState = { payload: unknown; x: number; y: number } | null;
@@ -127,6 +111,20 @@ export const HistoryTimeline = ({ items, from, to, onFromChange, onToChange, onA
         </div>
       )}
 
+      {segments.length > 0 && (
+        <div className="history-time-axis" aria-hidden="false">
+          {segments.map((segment) => (
+            <div
+              key={segment.id}
+              className="history-time-axis-cell"
+              style={{ width: `${(segment.duration / totalDuration) * 100}%` }}
+            >
+              <span className="history-time-axis-label">{formatDateTime(segment.changedAt)}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
       {tooltip && (
         <div
           className="history-bar-tooltip"
@@ -135,22 +133,6 @@ export const HistoryTimeline = ({ items, from, to, onFromChange, onToChange, onA
           <pre>{JSON.stringify(tooltip.payload, null, 2)}</pre>
         </div>
       )}
-
-      <ul className="timeline">
-        {segments.length === 0 ? (
-          <li className="timeline-item muted">No status changes in this range.</li>
-        ) : (
-          [...segments].reverse().map((segment) => (
-            <li key={segment.id} className="timeline-item">
-              <div className={`status-chip ${statusChipClass[segment.status]}`}>
-                <span aria-hidden="true">{statusIcon[segment.status]}</span> {segment.status}
-              </div>
-              <div>{new Date(segment.changedAt).toLocaleString()}</div>
-              <div className="muted">{formatDuration(segment.duration)}</div>
-            </li>
-          ))
-        )}
-      </ul>
     </section>
   );
 };

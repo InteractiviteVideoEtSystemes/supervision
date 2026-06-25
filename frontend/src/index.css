@@ -305,6 +305,27 @@ td {
   word-break: break-all;
 }
 
+.history-time-axis {
+  display: flex;
+  gap: 2px;
+  margin-top: 0.5rem;
+}
+
+.history-time-axis-cell {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: flex-start;
+  overflow: visible;
+}
+
+.history-time-axis-label {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  white-space: nowrap;
+  font-size: 0.7rem;
+  color: #64748b;
+}
+
 .checkbox-row {
   display: flex;
   align-items: center;
