@@ -3,7 +3,7 @@ name: issue-to-spec
 description: >-
   Pulls a GitHub issue given by number, URL, or owner/repo#number, analyzes the
   requested change, and creates a draft specification in docs/specs based on
-  ..\SPEC_TEMPLATE.md.
+  ..\accelerator-resources\SPEC_TEMPLATE.md.
 user-invocable: true
 ---
 
@@ -26,7 +26,7 @@ continuing.
 ## Required behavior
 
 1. Pull the issue from GitHub with `gh`.
-2. Read `..\SPEC_TEMPLATE.md` relative to the repository root.
+2. Read `..\accelerator-resources\SPEC_TEMPLATE.md` relative to the repository root.
 3. Analyze the issue title, body, labels, author, assignees, milestone, and
    comments.
 4. Create a draft spec file under `docs\specs\`.
@@ -50,14 +50,14 @@ Run commands from the repository root. On Windows, use PowerShell paths.
    ```
 4. Read the template at:
    ```text
-   ..\SPEC_TEMPLATE.md
+   ..\accelerator-resources\SPEC_TEMPLATE.md
    ```
 5. Write the generated spec to:
    ```text
    docs\specs\<issue-number>-<slug>.md
    ```
 
-If `..\SPEC_TEMPLATE.md` does not exist, stop and explain that the template is
+If `..\accelerator-resources\SPEC_TEMPLATE.md` does not exist, stop and explain that the template is
 missing. Do not silently use another template.
 
 ## Analysis rules
@@ -74,7 +74,7 @@ missing. Do not silently use another template.
 
 ## Spec generation rules
 
-Base the output on the headings and intent of `..\SPEC_TEMPLATE.md`.
+Base the output on the headings and intent of `..\accelerator-resources\SPEC_TEMPLATE.md`.
 
 Fill the template as follows:
 

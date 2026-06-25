@@ -53,9 +53,9 @@ une seule question de clarification.
 - Utiliser `git pull --ff-only` pour éviter les merges locaux accidentels.
 - Préférer `git branch -d` à `git branch -D`; si `-d` refuse, investiguer au
   lieu de forcer.
-- Ne pas lancer de reset destructif de la stack (`make reset`, suppression de
-  volumes, `supabase stop --no-backup`) uniquement pour constater une
-  fonctionnalité, sauf demande explicite de l'utilisateur.
+- Ne pas lancer de reset destructif de la stack (`docker compose down -v`, qui
+  supprime le volume `mariadb_data` et donc les données) uniquement pour
+  constater une fonctionnalité, sauf demande explicite de l'utilisateur.
 
 ## Bonnes pratiques à appliquer
 
@@ -71,7 +71,14 @@ git fetch --prune origin
 
 Déduis :
 
-- la branche par défaut (`main` dans ce dépôt, sauf indication GitHub contraire) ;
+- la branche par défaut du dépôt (`main`) ;
+- **la branche de base de la PR** (`baseRefName`) : dans ce dépôt, les PR de
+  fonctionnalité sont intégrées dans une branche d'intégration/release (par
+  exemple `features/initial_implementation`), **pas** directement dans `main`.
+  C'est cette branche de base qu'il faut mettre à jour, sur laquelle se
+  repositionner, et par rapport à laquelle vérifier que la PR est bien mergée.
+  Dans les commandes ci-dessous, `<default-branch>` désigne donc la branche de
+  base de la PR (souvent une branche d'intégration) ;
 - la branche locale courante ;
 - la branche distante de la PR ;
 - le numéro et l'état de la PR.
@@ -196,59 +203,43 @@ Puis applique le redéploiement le moins destructif possible :
    Copy-Item .env.example .env
    ```
 
-3. Si la PR touche `frontend/` ou `temporal/`, reconstruire les images applicatives
-   concernées avant de recréer les conteneurs :
+3. Reconstruire les images applicatives touchées par la PR avant de recréer les
+   conteneurs. La stack a trois services : `mariadb`, `backend`, `frontend`.
+   Reconstruis uniquement les services concernés :
    ```powershell
-   docker compose -f docker-compose.yml build frontend temporal-worker
+   # PR touchant backend/ et/ou frontend/
+   docker compose build backend frontend
    ```
-   Si seule une surface est touchée, tu peux reconstruire uniquement le service
-   correspondant.
+   Si une seule surface est touchée, ne reconstruis que ce service (par exemple
+   `docker compose build frontend`).
 
-4. Si la PR touche `supabase/functions/`, redémarrer Supabase via la CLI pour que
-   les fonctions locales soient rechargées :
+4. Démarrer ou recréer la stack (build inclus) :
    ```powershell
-   supabase stop
-   supabase start
+   docker compose up -d --build
    ```
+   Le backend applique automatiquement les migrations et le seed idempotent au
+   démarrage ; aucune commande de migration manuelle n'est nécessaire.
 
-5. Démarrer ou recréer la stack :
+5. Vérifier que les services répondent :
    ```powershell
-   make up
+   docker compose ps
+   (Invoke-WebRequest http://localhost -UseBasicParsing).StatusCode                  # frontend (nginx, port 80)
+   (Invoke-WebRequest http://localhost:3000/api/health -UseBasicParsing).StatusCode  # backend API
+   (Invoke-WebRequest "http://localhost:3000/api/status?env=preprod" -UseBasicParsing).StatusCode
    ```
+   Attendu : `mariadb` `healthy`, frontend et backend en `200`.
 
-   Sur Windows, si `make up` échoue à cause du script shell
-   `scripts/supabase-env.sh` ou d'une injection de clés Supabase, utiliser le
-   fallback PowerShell non destructif :
-
-   ```powershell
-   supabase start
-   $envLines = supabase status -o env
-   foreach ($line in $envLines) {
-     if ($line -match '^([^=]+)=(.*)$') {
-       Set-Item -Path "Env:$($matches[1])" -Value $matches[2]
-     }
-   }
-   docker compose -f docker-compose.yml up -d --force-recreate
-   ```
-
-6. Vérifier que les services répondent :
-   ```powershell
-   docker compose -f docker-compose.yml ps
-   supabase status
-   Invoke-WebRequest http://localhost:3000 -UseBasicParsing
-   Invoke-WebRequest http://localhost:8080 -UseBasicParsing
-   Invoke-WebRequest http://localhost:54321/rest/v1/ -UseBasicParsing
-   ```
-
-7. Indiquer à l'utilisateur où constater la fonctionnalité :
-   - frontend : `http://localhost:3000` ;
-   - route fonctionnelle connue si elle est évidente depuis la PR ou les specs ;
+6. Indiquer à l'utilisateur où constater la fonctionnalité :
+   - dashboard public (frontend) : `http://localhost` ;
+   - API : `http://localhost:3000/api` (`/api/health`, `/api/status?env=preprod`) ;
+   - admin par défaut : `admin` / `admin` (environnement `preprod`) ;
    - sinon, préciser que la stack est à jour et prête pour vérification manuelle.
 
 Si un composant ne démarre pas, ne fais pas de correction destructive
-automatique. Collecte les symptômes (`docker compose ps`, `make logs`,
-`make logs-frontend`, `make logs-temporal`, `supabase status`) et demande une
-décision si la réparation nécessite reset, suppression de volume ou rollback.
+automatique. Collecte les symptômes (`docker compose ps -a`,
+`docker compose logs --tail 200 backend`, `... frontend`, `... mariadb`) et
+demande une décision si la réparation nécessite un reset, la suppression d'un
+volume (`docker compose down -v`) ou un rollback.
 
 ### 9. Nettoyer les références distantes et vérifier
 

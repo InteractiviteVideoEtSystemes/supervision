@@ -24,6 +24,35 @@ The workflow is:
 7. Create a pull request only after the reviews pass.
 8. Loop from any failing review back to the previous responsible step.
 
+## Project architecture
+
+This repository is the **Supervision UI** service. Align implementation, tests,
+and validation with this stack:
+
+- **Backend** (`backend/`): NestJS + TypeORM + MariaDB, TypeScript. Build with
+  `npm run build` (`nest build`); tests use **Jest** (`npm test`) as `*.spec.ts`
+  under `backend/src`. Database migrations and an idempotent seed run
+  automatically at backend startup (env `preprod`, admin `admin`/`admin`).
+- **Frontend** (`frontend/`): React + Vite + TypeScript. Build with
+  `npm run build` (`tsc && vite build`); tests use **Vitest + React Testing
+  Library** (`npm test` → `vitest run`) under `frontend/src`.
+- **Orchestration**: a single `docker-compose.yml` at the repo root runs the
+  `mariadb`, `backend`, and `frontend` services. There is **no Makefile, no
+  Supabase, and no Temporal** in this project.
+- **Node.js is NOT installed on the host.** Run every npm/node/build/test command
+  inside Docker (`node:20-alpine`), for example:
+  ```powershell
+  docker run --rm -v "${PWD}\backend:/app"  -w /app node:20-alpine sh -c "npm ci --no-audit --no-fund && npm run build && npm test"
+  docker run --rm -v "${PWD}\frontend:/app" -w /app node:20-alpine sh -c "npm ci --no-audit --no-fund && npm run build && npm test"
+  ```
+- **Ticket tracker**: Jira (project `AISB`). Use the Jira tools to read and
+  transition tickets ("À faire" = `TODO`, "En cours" = `IN PROGRESS`).
+- **Commit convention**: `<Jira-ticket-ID> <conventional commit>` plus the
+  required `Co-authored-by: Copilot` trailer.
+- **PR base branch**: feature work is integrated into a release/integration
+  branch (for example `features/initial_implementation`), **not** directly into
+  `main`. Confirm the base branch before creating the PR.
+
 ## Input
 
 The user must provide two inputs:
@@ -154,10 +183,14 @@ Generate meaningful tests for the implemented behavior. Tests must fail if the
 requested behavior is broken or reverted. Avoid vanity tests, snapshots that only
 assert rendering exists, and assertions that do not prove the acceptance criteria.
 
-Use the repository's existing test framework and test locations. For frontend
-behavior, prefer focused Vitest/RTL tests. For Temporal behavior, add pytest
-tests under temporal/tests. For Supabase/database behavior, add migration/seed
-validation or contract tests only if the repository already has that style.
+Use the repository's existing test frameworks and locations. For backend (NestJS)
+behavior, add Jest tests as `*.spec.ts` under backend/src — cover services,
+probes, and guards, and use @nestjs/testing + supertest for HTTP/guard behavior
+(for example asserting a protected route returns 401 when unauthenticated). For
+frontend behavior, add focused Vitest + React Testing Library tests under
+frontend/src. Node.js is not installed on the host, so run the suites inside
+Docker (node:20-alpine). Mock external boundaries (MariaDB, network) so tests are
+deterministic and do not require live services.
 
 Do not expand product scope. Do not create a PR. Report test files changed and
 validation commands run.
@@ -207,20 +240,26 @@ back to Phase 1 with the specific implementation gap, then repeat Phases 2 and 3
 
 ## Phase 4: Validation
 
-Run the relevant available checks before final code review. Choose by touched
+Run the relevant available checks before final code review. Node.js is not
+installed on the host, so run builds and tests inside Docker. Choose by touched
 surface:
 
 ```powershell
-npm --prefix frontend run lint
-npm --prefix frontend run build
-npm --prefix frontend test -- --run
-python -m pytest temporal/tests
-supabase db reset --config supabase\config.toml
+# Backend (NestJS) — build + Jest
+docker run --rm -v "${PWD}\backend:/app"  -w /app node:20-alpine sh -c "npm ci --no-audit --no-fund && npm run build && npm test"
+
+# Frontend (React/Vite) — build + Vitest
+docker run --rm -v "${PWD}\frontend:/app" -w /app node:20-alpine sh -c "npm ci --no-audit --no-fund && npm run build && npm test"
+
+# Compose file is valid
+docker compose config
 ```
 
-Run only commands that are relevant and available. If a command is missing,
-requires unavailable services, or fails due to a known environment limitation,
-record that explicitly for the PR body.
+Run only commands relevant to the touched surface. Validation must not require a
+running MariaDB or live network — mock those boundaries in tests. A full
+`docker compose up` is generally not needed to validate a PR; if a command is
+missing, requires unavailable services, or fails due to a known environment
+limitation, record that explicitly for the PR body.
 
 ## Phase 5: Code-review agent
 
