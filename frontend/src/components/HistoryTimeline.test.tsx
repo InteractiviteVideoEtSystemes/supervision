@@ -263,4 +263,146 @@ describe('HistoryTimeline', () => {
       expect(container.querySelector('.history-bar-tooltip')).toBeNull();
     });
   });
+
+  // ── Timeline list (AISB-121) ──────────────────────────────────────────────
+
+  describe('timeline list (AISB-121)', () => {
+    // Non-uniform fixture: 4 transitions producing four distinct duration strings.
+    // Segments (ascending = bar order, component sorts oldest-first):
+    //   t1→t2: 08:00→08:45 = 45 min   → "45m"
+    //   t2→t3: 08:45→10:45 = 2 h      → "2h"
+    //   t3→t4: 10:45→12:00 = 1 h 15 m → "1h 15m"
+    //   t4→now: 12:00→12:30 = 30 min  → "30m"  (fake clock pinned at 12:30Z)
+    const timelineItems: ComponentHistoryItem[] = [
+      { id: 't1', status: 'up',      changedAt: '2026-06-25T08:00:00.000Z' },
+      { id: 't2', status: 'down',    changedAt: '2026-06-25T08:45:00.000Z' },
+      { id: 't3', status: 'up',      changedAt: '2026-06-25T10:45:00.000Z' },
+      { id: 't4', status: 'unknown', changedAt: '2026-06-25T12:00:00.000Z' },
+    ];
+    const FAKE_NOW = new Date('2026-06-25T12:30:00.000Z');
+
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    // AC1 – coexistence: timeline list and bar graph both render with same item count
+    it('renders one li.timeline-item per transition AND bar segments coexist (both length 3)', () => {
+      mockUseAuth.mockReturnValue(makeAuthValue({ isAuthenticated: false }));
+      const { container } = render(<HistoryTimeline {...baseProps} items={items} />);
+      expect(container.querySelectorAll('ul.timeline li.timeline-item')).toHaveLength(3);
+      expect(container.querySelectorAll('.history-bar-segment')).toHaveLength(3);
+    });
+
+    // AC3 – reverse-chronological order; FAILS if list is rendered oldest-first
+    it('first li.timeline-item is the NEWEST transition (unknown@12:00, status-orange); last is oldest (up@08:00, status-green)', () => {
+      mockUseAuth.mockReturnValue(makeAuthValue({ isAuthenticated: false }));
+      const { container } = render(<HistoryTimeline {...baseProps} items={items} />);
+      const lis = container.querySelectorAll('ul.timeline li.timeline-item');
+      // Newest at index 0
+      expect(lis[0].querySelector('.status-chip')?.classList).toContain('status-orange');
+      expect(lis[0].textContent).toContain('unknown');
+      // Oldest at index 2
+      expect(lis[2].querySelector('.status-chip')?.classList).toContain('status-green');
+      expect(lis[2].textContent).toContain('up');
+      // Explicit guard: oldest-first would invert these — assert the opposite is false
+      expect(lis[0].querySelector('.status-chip')?.classList).not.toContain('status-green');
+      expect(lis[2].querySelector('.status-chip')?.classList).not.toContain('status-orange');
+    });
+
+    // AC3 – ordering is stable even when input arrives in DESC order (as from the backend)
+    it('maintains newest-first list order regardless of input order (DESC input)', () => {
+      mockUseAuth.mockReturnValue(makeAuthValue({ isAuthenticated: false }));
+      const descItems = [items[2], items[1], items[0]]; // newest → oldest
+      const { container } = render(<HistoryTimeline {...baseProps} items={descItems} />);
+      const lis = container.querySelectorAll('ul.timeline li.timeline-item');
+      expect(lis[0].querySelector('.status-chip')?.classList).toContain('status-orange'); // unknown
+      expect(lis[2].querySelector('.status-chip')?.classList).toContain('status-green'); // up
+    });
+
+    // AC2 – correct chip CSS class per status (all three mapped in the list)
+    it('maps up→status-green, down→status-red, unknown→status-orange within the list', () => {
+      mockUseAuth.mockReturnValue(makeAuthValue({ isAuthenticated: false }));
+      const { container } = render(<HistoryTimeline {...baseProps} items={items} />);
+      const lis = Array.from(container.querySelectorAll('ul.timeline li.timeline-item'));
+      // reversed: [0]=unknown→orange, [1]=down→red, [2]=up→green
+      expect(lis[0].querySelector('.status-chip')?.classList).toContain('status-orange');
+      expect(lis[1].querySelector('.status-chip')?.classList).toContain('status-red');
+      expect(lis[2].querySelector('.status-chip')?.classList).toContain('status-green');
+    });
+
+    // AC4 – non-uniform durations; a buggy constant-"2h" impl would fail 3 of 4 assertions
+    it('shows distinct non-uniform formatted durations per row with deterministic clock', () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(FAKE_NOW); // 2026-06-25T12:30Z
+      mockUseAuth.mockReturnValue(makeAuthValue({ isAuthenticated: false }));
+      const { container } = render(<HistoryTimeline {...baseProps} items={timelineItems} />);
+      const lis = container.querySelectorAll('ul.timeline li.timeline-item');
+      // Newest-first: t4 → t3 → t2 → t1
+      expect(lis[0].querySelector('.muted')?.textContent).toBe('30m');    // t4: 12:00→12:30
+      expect(lis[1].querySelector('.muted')?.textContent).toBe('1h 15m'); // t3: 10:45→12:00
+      expect(lis[2].querySelector('.muted')?.textContent).toBe('2h');     // t2: 08:45→10:45
+      expect(lis[3].querySelector('.muted')?.textContent).toBe('45m');    // t1: 08:00→08:45
+    });
+
+    // AC2 – each row shows its own exact toLocaleString() timestamp in position order
+    it('each li.timeline-item shows the exact toLocaleString() timestamp matched to its changedAt', () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(FAKE_NOW);
+      mockUseAuth.mockReturnValue(makeAuthValue({ isAuthenticated: false }));
+      const { container } = render(<HistoryTimeline {...baseProps} items={timelineItems} />);
+      const lis = container.querySelectorAll('ul.timeline li.timeline-item');
+      // Newest-first: lis[0]=t4, lis[1]=t3, lis[2]=t2, lis[3]=t1
+      expect(lis[0].textContent).toContain(new Date(timelineItems[3].changedAt).toLocaleString());
+      expect(lis[1].textContent).toContain(new Date(timelineItems[2].changedAt).toLocaleString());
+      expect(lis[2].textContent).toContain(new Date(timelineItems[1].changedAt).toLocaleString());
+      expect(lis[3].textContent).toContain(new Date(timelineItems[0].changedAt).toLocaleString());
+    });
+
+    // AC5 – empty state uses distinct copy from bar graph; ul.timeline must not bleed bar-graph text
+    it('shows "No status changes in this range." in ul.timeline when items is empty', () => {
+      mockUseAuth.mockReturnValue(makeAuthValue({ isAuthenticated: false }));
+      const { container } = render(<HistoryTimeline {...baseProps} items={[]} />);
+      const timeline = container.querySelector('ul.timeline');
+      expect(timeline?.textContent).toContain('No status changes in this range.');
+      expect(timeline?.textContent).not.toContain('No transitions found.');
+      // Bar graph still renders its own empty-state message outside the timeline subtree
+      expect(screen.getByText('No transitions found.')).toBeInTheDocument();
+    });
+
+    it('does NOT show data li.timeline-item entries when items is empty (only the muted empty-state li)', () => {
+      mockUseAuth.mockReturnValue(makeAuthValue({ isAuthenticated: false }));
+      const { container } = render(<HistoryTimeline {...baseProps} items={[]} />);
+      // The empty-state message is rendered as a li.timeline-item.muted; exclude it
+      expect(
+        container.querySelectorAll('ul.timeline li.timeline-item:not(.muted)'),
+      ).toHaveLength(0);
+    });
+
+    // AC6 – no rawPayload leakage in ul.timeline (admin authenticated)
+    it('ul.timeline subtree text does NOT contain rawPayload keys/values when admin is authenticated', () => {
+      mockUseAuth.mockReturnValue(
+        makeAuthValue({ isAuthenticated: true, user: { id: 1, username: 'admin' } }),
+      );
+      const { container } = render(<HistoryTimeline {...baseProps} items={items} />);
+      const timelineText = container.querySelector('ul.timeline')?.textContent ?? '';
+      expect(timelineText).not.toContain('httpStatus');
+      expect(timelineText).not.toContain('Service unavailable');
+      expect(timelineText).not.toContain('example.com');
+    });
+
+    // AC6 – rawPayload is absent from the list even for anonymous users
+    it('ul.timeline subtree text does NOT contain rawPayload values for anonymous users', () => {
+      mockUseAuth.mockReturnValue(makeAuthValue({ isAuthenticated: false }));
+      const { container } = render(<HistoryTimeline {...baseProps} items={items} />);
+      const timelineText = container.querySelector('ul.timeline')?.textContent ?? '';
+      expect(timelineText).not.toContain('httpStatus');
+      expect(timelineText).not.toContain('503');
+      expect(timelineText).not.toContain('Service unavailable');
+      expect(timelineText).not.toContain('example.com');
+    });
+  });
 });
