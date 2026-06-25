@@ -4,6 +4,9 @@
   background: #f8fafc;
   line-height: 1.5;
   font-weight: 400;
+
+  --brand: #5000b0;
+  --brand-dark: #3a0080;
 }
 
 * {
@@ -16,7 +19,7 @@ body {
 }
 
 a {
-  color: #2563eb;
+  color: var(--brand);
   text-decoration: none;
 }
 
@@ -36,8 +39,12 @@ button {
   border: none;
   border-radius: 0.5rem;
   padding: 0.7rem 1rem;
-  background: #2563eb;
+  background: var(--brand);
   color: white;
+}
+
+button:hover {
+  background: var(--brand-dark);
 }
 
 button:disabled {
@@ -78,8 +85,22 @@ td {
   gap: 1rem;
   align-items: center;
   padding: 1.5rem 2rem;
-  background: #0f172a;
+  background: var(--brand);
   color: white;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.brand-logo {
+  height: 44px;
+  width: 44px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 
 .topbar h1,
@@ -265,13 +286,13 @@ td {
   justify-content: center;
   border-radius: 0.5rem;
   padding: 0.7rem 1rem;
-  background: #2563eb;
+  background: var(--brand);
   color: white;
 }
 
 .link-button {
   background: transparent;
-  color: #2563eb;
+  color: var(--brand);
   padding: 0;
 }
 
