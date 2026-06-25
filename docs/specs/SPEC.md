@@ -640,9 +640,9 @@ confirmation before/while implementing:
       **keeps its status color** (the color is the core signal); only the textual
       metadata (status text, last-transition date, criticality) is removed. So a
       box = colored background + label only.
-- [ ] **AISB-110 — "no more than 4 components":** interpreted as **≤ 4 per row**
-      (the screen is narrower). Confirm whether it means 4 per row (extra
-      components wrap to following rows) or a hard cap of 4 components total.
+- [x] **AISB-110 — "no more than 4 components" (confirmed 2026-06-25):** means
+      **≤ 4 components per row**; extra components wrap to following rows. It is
+      not a hard cap of 4 components total.
 - [ ] **AISB-109 — "standard user":** interpreted as **anonymous / not logged
       in** (the dashboard is public). The raw REST answer tooltip is reserved for
       authenticated admins. Confirm there is no intermediate non-admin
