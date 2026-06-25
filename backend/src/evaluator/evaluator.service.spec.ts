@@ -24,13 +24,15 @@ function makeService(
   mockComponentRepo: object = {},
   mockStatusHistoryRepo: object = {},
   mockGlobalStatusHistoryRepo: object = {},
+  mockStatusService: object = {},
+  mockStatusGateway: object = {},
 ): EvaluatorService {
   return new EvaluatorService(
     mockComponentRepo as any,
     mockStatusHistoryRepo as any,
     mockGlobalStatusHistoryRepo as any,
-    {} as any, // StatusService — not needed for these unit tests
-    {} as any, // StatusGateway — not needed for these unit tests
+    mockStatusService as any,
+    mockStatusGateway as any,
   );
 }
 
@@ -252,5 +254,119 @@ describe('EvaluatorService.computeAndPersistGlobal', () => {
     const changed = await service.computeAndPersistGlobal(environmentId);
     expect(changed).toBe(true);
     expect(globalStatusHistoryRepo.save).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ─── processResults (lastCheckedAt stamping + always-emit, AISB-120) ─────────
+
+describe('EvaluatorService.processResults (AISB-120)', () => {
+  const ENV_ID = 1;
+  const ENV_CODE = 'prod';
+  const COMPONENT_ID = 101;
+
+  // A fixed component so we can assert on its id in the update call
+  const component: Component = {
+    id: COMPONENT_ID,
+    code: 'database',
+    criticality: 'critical',
+    label: 'Database',
+    environmentId: ENV_ID,
+    enabled: true,
+    probeType: 'http-reachable',
+    probeConfig: {},
+    intervalSeconds: 60,
+    environment: {} as any,
+    statusHistory: [],
+  };
+
+  function makeProcessResultsService(prevStatus: string | null) {
+    const componentRepo = {
+      find: jest.fn().mockResolvedValue([component]),
+      update: jest.fn().mockResolvedValue({}),
+    };
+    const statusHistoryRepo = {
+      findOne: jest.fn().mockResolvedValue(prevStatus !== null ? { status: prevStatus } : null),
+      save: jest.fn().mockResolvedValue({}),
+      create: jest.fn().mockImplementation((data: unknown) => data),
+    };
+    const globalStatusHistoryRepo = {
+      findOne: jest.fn().mockResolvedValue({ status: 'green' }),
+      save: jest.fn().mockResolvedValue({}),
+      create: jest.fn().mockImplementation((data: unknown) => data),
+    };
+    const statusServiceMock = {
+      getStatusByEnvironmentId: jest.fn().mockResolvedValue({
+        environment: ENV_CODE,
+        global: 'green',
+        checkedAt: new Date().toISOString(),
+        components: [],
+      }),
+    };
+    const statusGatewayMock = {
+      emitStatusUpdate: jest.fn(),
+    };
+
+    const service = makeService(
+      componentRepo,
+      statusHistoryRepo,
+      globalStatusHistoryRepo,
+      statusServiceMock,
+      statusGatewayMock,
+    );
+
+    return { service, componentRepo, statusHistoryRepo, globalStatusHistoryRepo, statusGatewayMock };
+  }
+
+  it('stamps lastCheckedAt on all probed components even when no status changes', async () => {
+    const { service, componentRepo } = makeProcessResultsService('up'); // same status → no change
+
+    await service.processResults(ENV_ID, ENV_CODE, [{ componentCode: 'database', status: 'up' }]);
+
+    expect(componentRepo.update).toHaveBeenCalledTimes(1);
+    // Verify the second argument carries a real Date for lastCheckedAt
+    expect(componentRepo.update).toHaveBeenCalledWith(
+      expect.objectContaining({ id: expect.anything() }),
+      { lastCheckedAt: expect.any(Date) },
+    );
+  });
+
+  it('always emits a StatusGateway update even when no component status changed', async () => {
+    const { service, statusGatewayMock } = makeProcessResultsService('up'); // no change
+
+    await service.processResults(ENV_ID, ENV_CODE, [{ componentCode: 'database', status: 'up' }]);
+
+    expect(statusGatewayMock.emitStatusUpdate).toHaveBeenCalledTimes(1);
+    expect(statusGatewayMock.emitStatusUpdate).toHaveBeenCalledWith(
+      ENV_CODE,
+      expect.anything(),
+    );
+  });
+
+  it('does NOT write a status_history row when status is unchanged — transitions-only preserved', async () => {
+    const { service, statusHistoryRepo } = makeProcessResultsService('up'); // same → no save
+
+    await service.processResults(ENV_ID, ENV_CODE, [{ componentCode: 'database', status: 'up' }]);
+
+    expect(statusHistoryRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('stamps lastCheckedAt and emits even when a status transition does occur', async () => {
+    const { service, componentRepo, statusGatewayMock } = makeProcessResultsService('down'); // was down → now up
+
+    await service.processResults(ENV_ID, ENV_CODE, [{ componentCode: 'database', status: 'up' }]);
+
+    expect(componentRepo.update).toHaveBeenCalledWith(
+      expect.objectContaining({ id: expect.anything() }),
+      { lastCheckedAt: expect.any(Date) },
+    );
+    expect(statusGatewayMock.emitStatusUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it('does NOT call componentRepository.update when results array is empty', async () => {
+    const { service, componentRepo } = makeProcessResultsService(null);
+
+    await service.processResults(ENV_ID, ENV_CODE, []); // early-exit guard
+
+    expect(componentRepo.update).not.toHaveBeenCalled();
   });
 });

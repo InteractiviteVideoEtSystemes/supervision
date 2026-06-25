@@ -182,9 +182,10 @@ export class StatusService {
 
     const global = latestGlobal?.status ?? this.computeGlobalStatus(components, componentResponses);
     const checkedAt =
-      componentResponses
-        .map((component) => component.lastChangedAt)
-        .filter((value): value is string => Boolean(value))
+      components
+        .map((c) => c.lastCheckedAt)
+        .filter((d): d is Date => d != null)
+        .map((d) => d.toISOString())
         .sort()
         .at(-1) ??
       latestGlobal?.changedAt.toISOString() ??

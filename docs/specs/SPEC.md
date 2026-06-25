@@ -9,6 +9,14 @@
 > **AISB-109** (history detail design), **AISB-110** (simplified main page) and
 > **AISB-111** (history for the global status). All related open questions have
 > been **resolved** (see *Open Questions*); the batch is ready for implementation.
+>
+> **Addendum (2026-06-25) — AISB-120:** clarified the semantics of the
+> dashboard's `checkedAt` ("Checked at"): it must reflect the **last verification
+> (poll) time** of the components, **not** the last status transition. This
+> requires persisting a per-component **`last_checked_at`** timestamp updated on
+> **every** probe run (independent of the transitions-only history). See the
+> `component` data model, the `checkedAt` definition in *Technical Design*, and
+> the operator user story acceptance criteria.
 
 ## Overview
 
@@ -84,6 +92,10 @@ Supervised components (initial scope):
       defined in Technical Design.
 - [ ] The display refreshes automatically (at least once per minute) without a
       manual page reload.
+- [ ] The displayed **"Checked at"** time reflects the **last verification
+      (poll)** of the components — it advances after every polling cycle, even
+      when no status changed — and is **not** the last status transition
+      (AISB-120).
 
 ### As an operator, I want to consult the status history of a component so that I can analyze the frequency and duration of incidents
 
@@ -276,6 +288,7 @@ Main entities:
 | `probe_type` | VARCHAR(64) | Probe used to obtain the status (`core-api-health`, `http-reachable`, `http-status`, …) |
 | `probe_config` | JSON | Probe parameters (e.g. URL, expected code, JSON field, timeout) — enables adding a component by configuration only |
 | `interval_seconds` | INT | **Per-component** polling interval (default 60), configurable per route |
+| `last_checked_at` | DATETIME(3) NULL | Timestamp of the **last probe run** for this component, updated on **every** check regardless of whether the status changed (drives `checkedAt`; AISB-120) |
 | `enabled` | BOOLEAN | Whether supervision of the component is active |
 
 Components are created/edited/removed **via the UI** (CRUD), persisted here.
@@ -296,6 +309,12 @@ Components are created/edited/removed **via the UI** (CRUD), persisted here.
 > yields the same status does **not** create a row. The current status of a
 > component is its **latest** `status_history` row; an incident's duration is the
 > gap between two consecutive transitions.
+>
+> **Last verification time is tracked separately (AISB-120).** Independently of
+> the transitions-only history, the component's **`last_checked_at`** is updated
+> on **every** probe run (changed or not). The dashboard `checkedAt` is derived
+> from these timestamps, so it reflects the freshness of the data rather than the
+> age of the last transition.
 
 **`global_status_history`** (global status transitions, per environment)
 
@@ -409,7 +428,7 @@ admin session/token.
 | Method | Route | Auth | Response |
 |--------|-------|------|----------|
 | `GET` | `/api/environments` | public | List of environments (only `preprod` enabled initially) |
-| `GET` | `/api/status?env=preprod` | public | Current status of each component + global status + `checkedAt` |
+| `GET` | `/api/status?env=preprod` | public | Current status of each component + global status + `checkedAt` (last verification time, see below) |
 | `GET` | `/api/components?env=preprod` | public | List of components and their probe config |
 | `GET` | `/api/components/:id/history?from=&to=` | public | Status transitions of a component over a range |
 | `GET` | `/api/global-status/history?env=preprod&from=&to=` | public | **Global status** transitions over a range |
@@ -450,6 +469,15 @@ Example `GET /api/status`:
   ]
 }
 ```
+
+**`checkedAt` semantics (AISB-120).** `checkedAt` is the **most recent
+verification (poll) time** across the environment's enabled components — the
+maximum of their `last_checked_at` values. Because `last_checked_at` is updated
+on **every** probe run, `checkedAt` advances after each polling cycle even when
+no status changed. It must **not** be derived from the last `status_history` /
+`global_status_history` transition (which would freeze "Checked at" whenever the
+environment is stable). The same value is used in the WebSocket-pushed status
+payload so the dashboard banner stays current.
 
 ### UI/UX Design
 
@@ -538,6 +566,13 @@ Example `GET /api/status`:
       answer for logged-in admins only.
 - [ ] **AISB-111** — Make the **global status box clickable** to open the global
       status history, wired to the existing `GET /api/global-status/history`.
+
+### Phase 6: Status freshness (AISB-120)
+- [ ] **AISB-120** — Persist a per-component **`last_checked_at`** updated on
+      **every** probe run (changed or not), and derive `checkedAt` in
+      `GET /api/status` (and the WebSocket push) from the **max** of those
+      timestamps, so the dashboard "Checked at" reflects the **last verification**
+      rather than the last status transition.
 
 ## Testing Strategy
 
@@ -661,6 +696,8 @@ resolved** (confirmed 2026-06-25):
   principale*): https://ives-group.atlassian.net/browse/AISB-110
 - Jira **AISB-111** (Bug, *There is no history for the global status*):
   https://ives-group.atlassian.net/browse/AISB-111
+- Jira **AISB-120** (Bug, *"Checked at" reflects the last transition, not the
+  last verification*): https://ives-group.atlassian.net/browse/AISB-120
 - Parent epic **AISB-62** (*Supervision 1.0.0*):
   https://ives-group.atlassian.net/browse/AISB-62
 - Health endpoint: `https://core-api.elioz.fr/health` (prod, reachable) /
