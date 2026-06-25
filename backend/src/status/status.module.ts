@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuthModule } from '../auth/auth.module';
 import { Component } from '../entities/component.entity';
 import { Environment } from '../entities/environment.entity';
 import { GlobalStatusHistory } from '../entities/global-status-history.entity';
@@ -10,6 +11,7 @@ import { StatusService } from './status.service';
 
 @Module({
   imports: [
+    AuthModule,
     TypeOrmModule.forFeature([Environment, Component, StatusHistory, GlobalStatusHistory]),
   ],
   controllers: [StatusController],

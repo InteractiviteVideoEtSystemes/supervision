@@ -1,10 +1,14 @@
+import { useState } from 'react';
+import { useAuth } from '../hooks/useAuth';
 import type { ComponentHistoryItem } from '../types';
 
-const statusConfig = {
-  up: { text: 'Up', icon: '✓', className: 'status-green' },
-  down: { text: 'Down', icon: '✗', className: 'status-red' },
-  unknown: { text: 'Unknown', icon: '?', className: 'status-orange' },
-} as const;
+const statusColor: Record<ComponentHistoryItem['status'], string> = {
+  up: '#22c55e',
+  down: '#ef4444',
+  unknown: '#f97316',
+};
+
+type TooltipState = { payload: unknown; x: number; y: number } | null;
 
 type Props = {
   items: ComponentHistoryItem[];
@@ -16,37 +20,96 @@ type Props = {
 };
 
 export const HistoryTimeline = ({ items, from, to, onFromChange, onToChange, onApply }: Props) => {
+  const { isAuthenticated } = useAuth();
+  const [tooltip, setTooltip] = useState<TooltipState>(null);
+
+  // Sort chronologically oldest → newest for left-to-right display
+  const sorted = [...items].sort(
+    (a, b) => new Date(a.changedAt).getTime() - new Date(b.changedAt).getTime(),
+  );
+
+  const now = Date.now();
+  const segments = sorted.map((item, i) => {
+    const start = new Date(item.changedAt).getTime();
+    const end =
+      i < sorted.length - 1 ? new Date(sorted[i + 1].changedAt).getTime() : now;
+    return { ...item, duration: Math.max(end - start, 1) };
+  });
+
+  const totalDuration = segments.reduce((sum, s) => sum + s.duration, 0);
+
   return (
     <section className="panel stack">
       <div className="toolbar">
         <label>
           From
-          <input type="datetime-local" value={from} onChange={(event) => onFromChange(event.target.value)} />
+          <input
+            type="datetime-local"
+            value={from}
+            onChange={(event) => onFromChange(event.target.value)}
+          />
         </label>
         <label>
           To
-          <input type="datetime-local" value={to} onChange={(event) => onToChange(event.target.value)} />
+          <input
+            type="datetime-local"
+            value={to}
+            onChange={(event) => onToChange(event.target.value)}
+          />
         </label>
         <button onClick={onApply}>Apply filters</button>
       </div>
 
-      <ul className="timeline">
-        {items.length === 0 && <li className="timeline-item muted">No transitions found.</li>}
-        {items.map((item) => {
-          const config = statusConfig[item.status];
-          return (
-            <li key={item.id} className="timeline-item">
-              <div className={`status-chip ${config.className}`}>
-                <span aria-hidden="true">{config.icon}</span> {config.text}
-              </div>
-              <div>{new Date(item.changedAt).toLocaleString()}</div>
-              {item.rawPayload !== undefined && (
-                <pre className="payload-preview">{JSON.stringify(item.rawPayload, null, 2)}</pre>
-              )}
-            </li>
-          );
-        })}
-      </ul>
+      {segments.length === 0 ? (
+        <div className="muted">No transitions found.</div>
+      ) : (
+        <div className="history-bar-graph" role="img" aria-label="Status history bar graph">
+          {segments.map((segment) => {
+            const showTooltip = isAuthenticated && segment.rawPayload !== undefined;
+            return (
+              <div
+                key={segment.id}
+                className="history-bar-segment"
+                style={{
+                  width: `${(segment.duration / totalDuration) * 100}%`,
+                  backgroundColor: statusColor[segment.status],
+                }}
+                title={`${segment.status} — ${new Date(segment.changedAt).toLocaleString()}`}
+                onMouseEnter={
+                  showTooltip
+                    ? (e) =>
+                        setTooltip({
+                          payload: segment.rawPayload,
+                          x: e.clientX,
+                          y: e.clientY,
+                        })
+                    : undefined
+                }
+                onMouseMove={
+                  showTooltip
+                    ? (e) =>
+                        setTooltip({
+                          payload: segment.rawPayload,
+                          x: e.clientX,
+                          y: e.clientY,
+                        })
+                    : undefined
+                }
+                onMouseLeave={showTooltip ? () => setTooltip(null) : undefined}
+              />
+            );
+          })}
+        </div>
+      )}
+
+      {tooltip && (
+        <div
+          className="history-bar-tooltip"
+          style={{ left: tooltip.x + 14, top: tooltip.y + 14 }}
+        >
+          <pre>{JSON.stringify(tooltip.payload, null, 2)}</pre>
+        </div>
+      )}
     </section>
   );
 };

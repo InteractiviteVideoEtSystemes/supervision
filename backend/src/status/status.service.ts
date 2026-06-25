@@ -72,7 +72,7 @@ export class StatusService {
     }));
   }
 
-  async getHistory(componentId: number, from?: string, to?: string) {
+  async getHistory(componentId: number, from?: string, to?: string, includeRawPayload = false) {
     const component = await this.componentRepository.findOne({
       where: { id: componentId },
     });
@@ -107,7 +107,7 @@ export class StatusService {
         id: item.id,
         status: item.status,
         changedAt: item.changedAt.toISOString(),
-        rawPayload: item.rawPayload,
+        ...(includeRawPayload ? { rawPayload: item.rawPayload } : {}),
       })),
     };
   }
