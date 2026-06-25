@@ -5,6 +5,11 @@
 **Created:** 2026-06-25  
 **Last Updated:** 2026-06-25
 
+> **Addendum (2026-06-25):** extended with the display-refinement batch
+> **AISB-109** (history detail design), **AISB-110** (simplified main page) and
+> **AISB-111** (history for the global status). These additions are **Draft**
+> pending the items in *Open Questions*; the rest of the spec remains Approved.
+
 ## Overview
 
 Provide a centralized **supervision** web interface to visualize, in near
@@ -86,6 +91,43 @@ Supervised components (initial scope):
 - [ ] For a given component, I can consult a timeline of its status transitions.
 - [ ] The history can be filtered by date range.
 - [ ] Each entry shows the status and the timestamp of the transition.
+
+### As a standard (anonymous) user, I want the component history detail to be a simple colored timeline so that I can read incidents at a glance without technical noise (AISB-109)
+
+**Acceptance Criteria:**
+- [ ] Opening the history detail (via the "view history" button) renders a
+      **temporal bar graph** where each segment is colored by status
+      (green/orange/red), and **nothing else** — no raw REST/probe payload is
+      shown to an anonymous user.
+- [ ] The bar graph is ordered chronologically and reflects the stored status
+      transitions for the selected component.
+
+### As a logged-in (admin) user, I want to inspect the raw probe answer behind each history segment so that I can diagnose incidents (AISB-109)
+
+**Acceptance Criteria:**
+- [ ] On the same history detail view, when authenticated, **hovering the mouse
+      over a status-colored bar** displays the corresponding **REST API answer**
+      (the stored `raw_payload`) in a **tooltip**.
+- [ ] When not authenticated, the tooltip with the raw answer is **not**
+      available and the raw payload is not delivered to the client.
+
+### As a standard user, I want a simplified main page so that the supervision overview stays compact and readable (AISB-110)
+
+**Acceptance Criteria:**
+- [ ] On the main dashboard, each component box displays **only its label**
+      (the status color of the box is kept); no status text, last-transition
+      date or other metadata is shown.
+- [ ] **Clicking a component box opens that component's history.**
+- [ ] The dashboard layout is **narrower** and shows **no more than 4
+      components** in a row.
+
+### As a standard user, I want to open the history of the global status so that I can review overall environment health over time (AISB-111)
+
+**Acceptance Criteria:**
+- [ ] **Clicking the global status box** opens the **global status history**
+      (timeline of global status transitions for the environment).
+- [ ] The global status history is reachable from the UI (it consumes the
+      existing `GET /api/global-status/history` endpoint).
 
 ### As an administrator, I want the admin area to be protected by a login so that only authorized people can change the configuration
 
@@ -387,6 +429,14 @@ cookie) or a signed **JWT**. Admin routes are guarded by a middleware/guard that
 rejects unauthenticated requests with `401`. Password change re-hashes the new
 value with bcrypt after verifying the current one.
 
+**Role-based history detail (AISB-109).** `GET /api/components/:id/history`
+stays public and returns the status transitions (status + timestamp) for the
+colored bar graph. The per-transition **`raw_payload`** (the REST API answer) is
+**only included when the request is authenticated** as admin; anonymous
+responses omit it entirely, so the raw answer is never delivered to the public
+client. The frontend therefore only renders the hover tooltip when a payload is
+present (i.e. for logged-in admins).
+
 Example `GET /api/status`:
 
 ```json
@@ -403,17 +453,26 @@ Example `GET /api/status`:
 
 ### UI/UX Design
 
-- **Dashboard**: a highly visible global status banner (green/orange/red), then a
-  grid of cards — one per component — with a colored indicator, label, status and
-  the date of the last transition.
+- **Dashboard (simplified — AISB-110)**: a highly visible global status banner
+  (green/orange/red), then a compact grid of **component boxes** showing **only
+  the component label** over the box's status color — no status text, date or
+  other metadata. The layout is **narrower** and lays out **at most 4 components
+  per row**. **Clicking a component box opens that component's history.**
 - **Real-time refresh**: updates via WebSocket (or fallback polling on
-  `/api/status`); a card is updated whenever a transition is pushed.
-- **History view**: on clicking a component, a timeline of transitions filterable
-  by dates, with downtime durations computed from consecutive transitions. A
-  separate **global status timeline** shows the environment's overall health over
-  time.
+  `/api/status`); a box's color is updated whenever a transition is pushed.
+- **Component history detail (AISB-109)**: opened via the "view history" button
+  (or by clicking a component box). It renders a **temporal bar graph** whose
+  segments are colored by status (green/orange/red).
+  - For a **standard / anonymous** user: colors only, **no** raw REST/probe
+    answer is shown or sent to the client.
+  - For a **logged-in (admin)** user: **hovering a colored bar** shows the
+    corresponding **REST API answer** (the stored `raw_payload`) in a **tooltip**.
+- **Global status history (AISB-111)**: **clicking the global status box/banner**
+  opens the **global status timeline** (global status transitions over time),
+  backed by `GET /api/global-status/history`.
 - **Public area**: the dashboard, real-time refresh and history/timeline views
-  are accessible without login.
+  (colors only) are accessible without login. The raw-payload tooltip is
+  admin-only.
 - **Admin login**: a login form (username/password) gates the admin area. On
   success the session is kept (cookie/JWT); a logout action is available.
 - **Configuration (CRUD) — admin only**: a protected view to **add/edit/remove
@@ -468,6 +527,18 @@ Example `GET /api/status`:
 - [ ] Documented environment variables (DB access, base settings). Component and
       probe configuration lives in the database (managed via the UI), not in env vars.
 
+### Phase 5: Display refinements (AISB-109 / AISB-110 / AISB-111)
+- [ ] **AISB-110** — Simplify the main dashboard: each component box shows only
+      its label over the status color; remove status text/date/extra metadata;
+      narrow the layout to **≤ 4 components per row**; make the whole box
+      clickable to open that component's history.
+- [ ] **AISB-109** — Rework the component history detail into a **temporal bar
+      graph** colored by status; expose the raw `raw_payload` only to
+      authenticated requests and render an **on-hover tooltip** with the REST API
+      answer for logged-in admins only.
+- [ ] **AISB-111** — Make the **global status box clickable** to open the global
+      status history, wired to the existing `GET /api/global-status/history`.
+
 ## Testing Strategy
 
 - **Unit tests**: status evaluator (all per-component combinations and global
@@ -481,7 +552,15 @@ Example `GET /api/status`:
 - **E2E tests**: public flow (status display, refresh, history) and admin flow
   (login, add a component via the config UI, change password).
 - **Security tests**: passwords stored only as bcrypt hashes; admin routes
-  unreachable without a valid session.
+  unreachable without a valid session; **`GET /api/components/:id/history`
+  omits `raw_payload` for anonymous requests and includes it only for
+  authenticated admins (AISB-109)**.
+- **UI tests (AISB-109/110/111)**: dashboard renders each component box with the
+  label only and at most 4 per row (AISB-110); clicking a component box opens its
+  history; the history detail renders a colored bar graph; the raw-answer tooltip
+  appears on hover **only when authenticated** and is absent for anonymous users
+  (AISB-109); clicking the global status box opens the global status history
+  (AISB-111).
 - **Performance tests**: pagination of history/transition queries.
 
 ## Rollout Plan
@@ -552,10 +631,39 @@ These were previously open questions; they are now decided:
 > `core-API` rule clarified: **route reachable (any HTTP code) ⇒ up**, **no
 > response ⇒ down** (never `unknown`). The `isServiceApiUp` field is not used.
 
+## Open Questions
+
+These items come from the AISB-109/110/111 refinement batch and need
+confirmation before/while implementing:
+
+- [ ] **AISB-110 — "only the label":** literally the ticket says each box shows
+      "only Label … no need to display anything else". Assumption taken: the box
+      keeps its **status color** (the color is the core signal) and only the
+      textual metadata (status text, last-transition date, criticality) is
+      removed. Confirm the color box is retained.
+- [ ] **AISB-110 — "no more than 4 components":** interpreted as **≤ 4 per row**
+      (the screen is narrower). Confirm whether it means 4 per row (extra
+      components wrap to following rows) or a hard cap of 4 components total.
+- [ ] **AISB-109 — "standard user":** interpreted as **anonymous / not logged
+      in** (the dashboard is public). The raw REST answer tooltip is reserved for
+      authenticated admins. Confirm there is no intermediate non-admin
+      authenticated role.
+- [ ] **AISB-109 — content of the tooltip:** assumed to be the stored
+      `raw_payload` of the relevant transition. Confirm whether the tooltip
+      should show the full raw JSON or a formatted subset.
+
 ## References
 
 - `docs\INPUTS.txt` — source requirements.
 - `..\..\accelerator-resources\SPEC_TEMPLATE.md` — specification template.
+- Jira **AISB-109** (Story, *US - History detail design*):
+  https://ives-group.atlassian.net/browse/AISB-109
+- Jira **AISB-110** (Story, *US - Simplification du design de la page
+  principale*): https://ives-group.atlassian.net/browse/AISB-110
+- Jira **AISB-111** (Bug, *There is no history for the global status*):
+  https://ives-group.atlassian.net/browse/AISB-111
+- Parent epic **AISB-62** (*Supervision 1.0.0*):
+  https://ives-group.atlassian.net/browse/AISB-62
 - Health endpoint: `https://core-api.elioz.fr/health` (prod, reachable) /
   `https://core-api-preprod.elioz.fr/health` (preprod). NB: returns the JSON body
   even with an HTTP code ≠ 200 (503 observed in prod).
