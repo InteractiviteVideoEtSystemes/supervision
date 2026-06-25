@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import type { GlobalStatus } from '../types';
 
 const globalStatusConfig: Record<
@@ -31,7 +32,7 @@ export const StatusBanner = ({ environment, globalStatus, checkedAt }: Props) =>
   const config = globalStatusConfig[globalStatus];
 
   return (
-    <div className={`status-banner ${config.className}`}>
+    <Link to="/global-history" className={`status-banner ${config.className}`}>
       <div className="status-banner-main">
         <span className="status-icon" aria-hidden="true">
           {config.icon}
@@ -42,6 +43,6 @@ export const StatusBanner = ({ environment, globalStatus, checkedAt }: Props) =>
         </div>
       </div>
       <span className="muted">Checked at {new Date(checkedAt).toLocaleString()}</span>
-    </div>
+    </Link>
   );
 };

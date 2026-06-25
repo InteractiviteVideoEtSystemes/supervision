@@ -169,6 +169,13 @@ td {
   align-items: center;
   gap: 1rem;
   border-left: 0.5rem solid transparent;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.status-banner:hover {
+  text-decoration: none;
 }
 
 .status-banner-main {
@@ -183,12 +190,20 @@ td {
 
 .card-grid {
   display: grid;
-  gap: 1rem;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.75rem;
+  grid-template-columns: repeat(4, 1fr);
 }
 
 .component-card {
+  display: block;
   border-left: 0.5rem solid transparent;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.component-card:hover {
+  text-decoration: none;
 }
 
 .component-card-header {
@@ -249,6 +264,45 @@ td {
   color: #e2e8f0;
   padding: 0.75rem;
   border-radius: 0.5rem;
+}
+
+.history-bar-graph {
+  display: flex;
+  height: 3rem;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  gap: 2px;
+}
+
+.history-bar-segment {
+  flex-shrink: 0;
+  height: 100%;
+  transition: filter 0.1s;
+}
+
+.history-bar-segment:hover {
+  filter: brightness(1.15);
+}
+
+.history-bar-tooltip {
+  position: fixed;
+  z-index: 1000;
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  pointer-events: none;
+  max-width: 420px;
+  max-height: 280px;
+  overflow: auto;
+  font-size: 0.8rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.history-bar-tooltip pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
 }
 
 .checkbox-row {
@@ -323,5 +377,9 @@ td {
   .status-banner {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .card-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
