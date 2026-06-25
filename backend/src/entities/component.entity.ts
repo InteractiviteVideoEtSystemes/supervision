@@ -51,6 +51,9 @@ export class Component {
   @Column({ type: 'boolean', default: true })
   enabled: boolean;
 
+  @Column({ name: 'last_checked_at', type: 'datetime', precision: 3, nullable: true })
+  lastCheckedAt?: Date | null;
+
   @OneToMany(() => StatusHistory, (statusHistory) => statusHistory.component)
   statusHistory: StatusHistory[];
 }

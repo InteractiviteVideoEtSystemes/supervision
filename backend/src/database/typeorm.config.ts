@@ -6,6 +6,7 @@ import { Environment } from '../entities/environment.entity';
 import { GlobalStatusHistory } from '../entities/global-status-history.entity';
 import { StatusHistory } from '../entities/status-history.entity';
 import { Initial1719000000000 } from './migrations/1719000000000-Initial';
+import { AddComponentLastCheckedAt1782518400000 } from './migrations/1782518400000-AddComponentLastCheckedAt';
 
 export const buildDataSourceOptions = (): DataSourceOptions => ({
   type: 'mariadb',
@@ -15,7 +16,7 @@ export const buildDataSourceOptions = (): DataSourceOptions => ({
   password: process.env.DB_PASSWORD ?? 'supervision',
   database: process.env.DB_NAME ?? 'supervision',
   entities: [Environment, Component, StatusHistory, GlobalStatusHistory, AdminUser],
-  migrations: [Initial1719000000000],
+  migrations: [Initial1719000000000, AddComponentLastCheckedAt1782518400000],
   synchronize: false,
   migrationsRun: false,
   logging: false,

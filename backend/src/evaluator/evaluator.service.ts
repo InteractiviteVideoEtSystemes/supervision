@@ -38,7 +38,6 @@ export class EvaluatorService {
     });
 
     const componentByCode = new Map(components.map((component) => [component.code, component]));
-    let componentChanged = false;
 
     for (const result of results) {
       const component = componentByCode.get(result.componentCode);
@@ -46,15 +45,18 @@ export class EvaluatorService {
         continue;
       }
 
-      const changed = await this.persistResult(result, component);
-      componentChanged = componentChanged || changed;
+      await this.persistResult(result, component);
     }
 
-    const globalChanged = await this.computeAndPersistGlobal(environmentId);
-
-    if (componentChanged || globalChanged) {
-      await this.emitEnvironmentUpdate(environmentId, environmentCode);
+    if (components.length) {
+      await this.componentRepository.update(
+        { id: In(components.map((c) => c.id)) },
+        { lastCheckedAt: new Date() },
+      );
     }
+
+    await this.computeAndPersistGlobal(environmentId);
+    await this.emitEnvironmentUpdate(environmentId, environmentCode);
   }
 
   async refreshEnvironmentStatus(

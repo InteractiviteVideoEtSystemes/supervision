@@ -93,3 +93,117 @@ describe('StatusService.getHistory — rawPayload visibility (AISB-109)', () => 
     expect(result.history).toHaveLength(0);
   });
 });
+
+// ─── buildStatusResponse — checkedAt derivation (AISB-120) ──────────────────
+
+describe('StatusService.buildStatusResponse — checkedAt derivation (AISB-120)', () => {
+  const ENV_ID = 42;
+  const ENV_CODE = 'prod';
+  const environment = { id: ENV_ID, code: ENV_CODE, label: 'Production', enabled: true };
+
+  // OLD: a status transition that happened many days ago
+  const OLD_TRANSITION = new Date('2026-06-10T08:00:00.000Z');
+  // RECENT: the last probe run, more recent than the transition
+  const RECENT_CHECK_A = new Date('2026-06-25T14:00:00.000Z');
+  const RECENT_CHECK_B = new Date('2026-06-25T15:30:00.000Z'); // later than A
+
+  function makeStatusServiceForGetStatus(
+    components: object[],
+    latestHistory: object | null,
+    latestGlobal: object | null,
+  ): StatusService {
+    return new StatusService(
+      { findOne: jest.fn().mockResolvedValue(environment) } as any,
+      { find: jest.fn().mockResolvedValue(components) } as any,
+      { findOne: jest.fn().mockResolvedValue(latestHistory) } as any,
+      { findOne: jest.fn().mockResolvedValue(latestGlobal) } as any,
+    );
+  }
+
+  it('uses MAX lastCheckedAt not lastChangedAt as checkedAt — core regression guard', async () => {
+    // Component has a RECENT lastCheckedAt but an OLD status transition (changedAt).
+    // checkedAt must reflect the recent poll, not the old transition.
+    const components = [
+      {
+        id: 1,
+        code: 'api',
+        label: 'API',
+        criticality: 'critical',
+        lastCheckedAt: RECENT_CHECK_A,
+        enabled: true,
+      },
+    ];
+    const latestHistory = { status: 'up', changedAt: OLD_TRANSITION };
+    const latestGlobal = { status: 'green', changedAt: OLD_TRANSITION };
+
+    const service = makeStatusServiceForGetStatus(components, latestHistory, latestGlobal);
+    const result = await service.getStatusByEnvironmentId(ENV_ID);
+
+    // Must equal the recent poll time
+    expect(result.checkedAt).toBe(RECENT_CHECK_A.toISOString());
+    // Must NOT equal the old transition time — this would catch a revert to lastChangedAt
+    expect(result.checkedAt).not.toBe(OLD_TRANSITION.toISOString());
+  });
+
+  it('returns the maximum lastCheckedAt across multiple components', async () => {
+    const components = [
+      {
+        id: 1,
+        code: 'api',
+        label: 'API',
+        criticality: 'critical',
+        lastCheckedAt: RECENT_CHECK_A,
+        enabled: true,
+      },
+      {
+        id: 2,
+        code: 'db',
+        label: 'DB',
+        criticality: 'critical',
+        lastCheckedAt: RECENT_CHECK_B, // LATER — should be chosen
+        enabled: true,
+      },
+    ];
+    const latestHistory = { status: 'up', changedAt: OLD_TRANSITION };
+    const latestGlobal = { status: 'green', changedAt: OLD_TRANSITION };
+
+    const service = makeStatusServiceForGetStatus(components, latestHistory, latestGlobal);
+    const result = await service.getStatusByEnvironmentId(ENV_ID);
+
+    expect(result.checkedAt).toBe(RECENT_CHECK_B.toISOString());
+    expect(result.checkedAt).not.toBe(RECENT_CHECK_A.toISOString());
+  });
+
+  it('falls back to latestGlobal.changedAt when no component has lastCheckedAt', async () => {
+    const GLOBAL_TIME = new Date('2026-06-24T12:00:00.000Z');
+    const components = [
+      {
+        id: 1,
+        code: 'api',
+        label: 'API',
+        criticality: 'critical',
+        lastCheckedAt: null, // never polled yet
+        enabled: true,
+      },
+    ];
+    const latestHistory = { status: 'up', changedAt: OLD_TRANSITION };
+    const latestGlobal = { status: 'green', changedAt: GLOBAL_TIME };
+
+    const service = makeStatusServiceForGetStatus(components, latestHistory, latestGlobal);
+    const result = await service.getStatusByEnvironmentId(ENV_ID);
+
+    expect(result.checkedAt).toBe(GLOBAL_TIME.toISOString());
+  });
+
+  it('falls back to a valid ISO timestamp ≈ now when no components and no global exist', async () => {
+    const before = Date.now();
+    const service = makeStatusServiceForGetStatus([], null, null);
+    const result = await service.getStatusByEnvironmentId(ENV_ID);
+    const after = Date.now();
+
+    const checkedAtMs = new Date(result.checkedAt).getTime();
+    expect(Number.isNaN(checkedAtMs)).toBe(false);
+    expect(checkedAtMs).toBeGreaterThanOrEqual(before);
+    expect(checkedAtMs).toBeLessThanOrEqual(after);
+  });
+});
