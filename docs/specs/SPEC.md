@@ -7,8 +7,8 @@
 
 > **Addendum (2026-06-25):** extended with the display-refinement batch
 > **AISB-109** (history detail design), **AISB-110** (simplified main page) and
-> **AISB-111** (history for the global status). These additions are **Draft**
-> pending the items in *Open Questions*; the rest of the spec remains Approved.
+> **AISB-111** (history for the global status). All related open questions have
+> been **resolved** (see *Open Questions*); the batch is ready for implementation.
 
 ## Overview
 
@@ -633,8 +633,8 @@ These were previously open questions; they are now decided:
 
 ## Open Questions
 
-These items come from the AISB-109/110/111 refinement batch and need
-confirmation before/while implementing:
+The AISB-109/110/111 refinement batch raised the following items; **all are now
+resolved** (confirmed 2026-06-25):
 
 - [x] **AISB-110 — "only the label" (confirmed 2026-06-25):** the component box
       **keeps its status color** (the color is the core signal); only the textual
@@ -647,9 +647,9 @@ confirmation before/while implementing:
       **anonymous / not logged-in** user. There is no intermediate non-admin
       authenticated role: the raw REST answer tooltip is reserved for
       authenticated admins, everyone else sees colors only.
-- [ ] **AISB-109 — content of the tooltip:** assumed to be the stored
-      `raw_payload` of the relevant transition. Confirm whether the tooltip
-      should show the full raw JSON or a formatted subset.
+- [x] **AISB-109 — content of the tooltip (confirmed 2026-06-25):** the tooltip
+      shows the **full raw JSON** of the relevant transition's `raw_payload` (not
+      a formatted subset).
 
 ## References
 
