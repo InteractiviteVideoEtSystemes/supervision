@@ -66,6 +66,5 @@ the body that powers the other five components.
 
 ## Notes
 
-User decision after testing the route: "si elle répond, quelle que soit le code de
-retour, c'est un statut up pour la core-API et si elle ne répond pas, c'est un
-statut down".
+User decision after testing the route: if it responds, whatever the return code,
+core-API is up; if it does not respond, it is down.

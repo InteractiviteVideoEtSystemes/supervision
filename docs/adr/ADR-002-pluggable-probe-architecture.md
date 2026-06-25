@@ -72,5 +72,6 @@ evaluator, persistence, API or UI.
 
 ## Notes
 
-The extensibility requirement was explicitly stated: "l'application devra être
-conçue pour permettre l'ajout d'autres composants avec des requêtes autonomes".
+The extensibility requirement was explicitly stated: the application must be
+designed to allow adding other components with autonomous requests (i.e. not
+going through core-API).

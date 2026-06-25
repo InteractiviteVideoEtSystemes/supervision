@@ -55,5 +55,5 @@ data model that hard-codes a single environment and would later require a redesi
 
 ## Notes
 
-User decision: "il faudra être capable de gérer plusieurs environnements, mais
-pour le moment, pour la mise au point, travaillons uniquement sur la preprod".
+User decision: multiple environments must eventually be supported, but for now,
+during tuning, we work only on preprod.

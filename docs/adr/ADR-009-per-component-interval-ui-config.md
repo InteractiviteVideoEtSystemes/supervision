@@ -59,5 +59,4 @@ where the polling cadence and component definitions live and how they are edited
 
 ## Notes
 
-User decisions: "configuration de l'interval par route" and "configuration via
-l'UI".
+User decisions: per-route interval configuration, and configuration through the UI.

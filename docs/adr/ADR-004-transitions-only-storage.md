@@ -64,5 +64,5 @@ Persist **only status transitions**:
 
 ## Notes
 
-User decisions: "stockage des transitions", "pas de nettoyage pour le moment",
-and "il faut que le statut global soit historisé".
+User decisions: store transitions, no cleanup for now, and the global status must
+be historized.
